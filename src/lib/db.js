@@ -2,18 +2,34 @@
 
 const DB_KEY = 'hanoibus_db';
 
+const opHoursPresets = [
+  { startTime: '05:00', endTime: '22:30' }, // Standard full day
+  { startTime: '05:30', endTime: '21:00' }, // Standard shortened
+  { startTime: '06:00', endTime: '22:00' }, // Working hours extended
+  { startTime: '05:00', endTime: '23:30' }, // Late night
+  { startTime: '07:00', endTime: '19:00' }, // Working hours only
+  { startTime: '05:30', endTime: '22:00' }, // Full day standard
+  { startTime: '06:30', endTime: '20:30' }, // Daytime service
+  { startTime: '04:30', endTime: '23:59' }, // Extended early-late
+  { startTime: '06:00', endTime: '18:00' }, // Daytime only
+  { startTime: '05:00', endTime: '21:00' }, // Evening cutoff
+  { startTime: '07:30', endTime: '22:00' }, // Late start, late end
+  { startTime: '05:00', endTime: '20:00' }, // Early cutoff
+];
+
 const mockRoutes = [
-  { id: 'R01', name: 'Route 01', start: 'Gia Lam', end: 'Yen Nghia', frequency: '15 mins', status: 'Active' },
-  { id: 'R02', name: 'Route 02', start: 'Bac Co', end: 'Yen Nghia', frequency: '20 mins', status: 'Active' },
-  { id: 'R08', name: 'Route 08', start: 'Long Bien', end: 'Dong My', frequency: '10 mins', status: 'Active' },
-  { id: 'R32', name: 'Route 32', start: 'Giap Bat', end: 'Nhon', frequency: '15 mins', status: 'Maintenance' },
+  { id: 'R01', name: 'Route 01', start: 'Gia Lam', end: 'Yen Nghia', frequency: '15 mins', status: 'Active', operatingHours: { startTime: '05:00', endTime: '22:30' } },
+  { id: 'R02', name: 'Route 02', start: 'Bac Co', end: 'Yen Nghia', frequency: '20 mins', status: 'Active', operatingHours: { startTime: '05:30', endTime: '21:30' } },
+  { id: 'R08', name: 'Route 08', start: 'Long Bien', end: 'Dong My', frequency: '10 mins', status: 'Active', operatingHours: { startTime: '05:00', endTime: '23:00' } },
+  { id: 'R32', name: 'Route 32', start: 'Giap Bat', end: 'Nhon', frequency: '15 mins', status: 'Maintenance', operatingHours: { startTime: '06:00', endTime: '20:00' } },
   ...Array.from({ length: 46 }).map((_, i) => ({
     id: `R${(i + 10).toString().padStart(2, '0')}`,
     name: `Route ${i + 10}`,
     start: ['Giap Bat', 'My Dinh', 'Gia Lam', 'Long Bien', 'Cau Giay', 'Yen Nghia', 'Nam Thang Long', 'Ha Dong'][i % 8],
     end: ['Noi Bai', 'Dong Anh', 'Thanh Tri', 'Hoang Mai', 'Tay Ho', 'Ba Dinh', 'Hai Ba Trung', 'Tu Liem'][i % 8],
     frequency: `${[10, 15, 20, 25, 30][i % 5]} mins`,
-    status: i % 7 === 0 ? 'Maintenance' : 'Active'
+    status: i % 7 === 0 ? 'Maintenance' : 'Active',
+    operatingHours: opHoursPresets[i % opHoursPresets.length]
   }))
 ];
 

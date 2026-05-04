@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Navigation, Clock, ChevronRight, Bus, Search, Map as MapIcon } from 'lucide-react';
+import { MapPin, Navigation, Clock, ChevronRight, Bus, Search, Map as MapIcon, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -23,6 +23,8 @@ export default function Home() {
   
   const [showFromSuggestions, setShowFromSuggestions] = useState(false);
   const [showToSuggestions, setShowToSuggestions] = useState(false);
+  const [geoLocating, setGeoLocating] = useState(false);
+  const [geoError, setGeoError] = useState('');
   const [buses, setBuses] = useState([]);
 
   useEffect(() => {
@@ -46,8 +48,39 @@ export default function Home() {
   const filteredToLocations = hanoiLocations.filter(loc => loc.toLowerCase().includes(toLocation.toLowerCase()));
 
   const mockResults = [
-    { id: 1, route: '32', time: '45 min', eta: '5 min', changes: 0, cost: '7,000 VND', frequency: '15 mins' },
-    { id: 2, route: '01 → 08', time: '55 min', eta: '2 min', changes: 1, cost: '14,000 VND', frequency: '10-20 mins' }
+    {
+      id: 1,
+      changes: 0,
+      cost: '7,000 VND',
+      frequency: '15 mins',
+      eta: '5 min',
+      steps: [
+        { bus: '32', from: 'Current Location', to: 'Yen Nghia', time: '45 min', operatingHours: '05:00 – 22:30' }
+      ]
+    },
+    {
+      id: 2,
+      changes: 1,
+      cost: '14,000 VND',
+      frequency: '10–20 mins',
+      eta: '2 min',
+      steps: [
+        { bus: '01', from: 'Current Location', to: 'Long Bien Station', time: '25 min', operatingHours: '05:00 – 22:30' },
+        { bus: '08', from: 'Long Bien Station', to: 'Destination', time: '30 min', operatingHours: '05:00 – 23:00' }
+      ]
+    },
+    {
+      id: 3,
+      changes: 2,
+      cost: '21,000 VND',
+      frequency: '15–25 mins',
+      eta: '8 min',
+      steps: [
+        { bus: '14', from: 'Current Location', to: 'Giap Bat Station', time: '20 min', operatingHours: '06:00 – 22:00' },
+        { bus: '32', from: 'Giap Bat Station', to: 'My Dinh Station', time: '25 min', operatingHours: '05:00 – 22:30' },
+        { bus: '44', from: 'My Dinh Station', to: 'Destination', time: '20 min', operatingHours: '07:00 – 19:00' }
+      ]
+    }
   ];
 
   const handleSearch = (e) => {
@@ -64,13 +97,45 @@ export default function Home() {
   };
 
   const useCurrentLocation = () => {
-    setFromLocation('Current Location (Hoan Kiem)');
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGeoLocating(true);
+    setGeoError('');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+          );
+          const data = await res.json();
+          const label =
+            data.address?.suburb ||
+            data.address?.neighbourhood ||
+            data.address?.district ||
+            data.address?.city ||
+            `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          setFromLocation(`📍 ${label} (Current Location)`);
+        } catch {
+          setFromLocation(`📍 ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        }
+        setGeoLocating(false);
+        setShowFromSuggestions(false);
+      },
+      (err) => {
+        setGeoError('Unable to retrieve location. Please allow location access.');
+        setGeoLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
   };
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row gap-8">
+    <div className="flex-1 flex flex-col lg:flex-row gap-8 lg:items-start lg:overflow-hidden">
       {/* Left Column: Journey Planner */}
-      <div className="w-full lg:w-1/3 space-y-6 flex flex-col h-full">
+      <div className="w-full lg:w-1/3 flex flex-col lg:max-h-full lg:overflow-y-auto shrink-0">
         <div className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] p-8 rounded-[24px] text-white shadow-xl shadow-[var(--color-primary)]/20 relative overflow-hidden shrink-0">
           <div className="absolute -right-4 -top-4 opacity-10 pointer-events-none">
             <Bus className="w-48 h-48" />
@@ -98,14 +163,56 @@ export default function Home() {
               <button 
                 type="button" 
                 onClick={useCurrentLocation}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white transition-colors"
+                disabled={geoLocating}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white transition-colors disabled:animate-pulse"
                 title="Use current location"
               >
-                <Navigation className="w-5 h-5" />
+                {geoLocating
+                  ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  : <Navigation className="w-5 h-5" />}
               </button>
 
               {/* From Suggestions Dropdown */}
               <AnimatePresence>
+                {/* "Use my location" prompt when input is empty & focused */}
+                {showFromSuggestions && !fromLocation && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                  >
+                    <div
+                      onClick={useCurrentLocation}
+                      className="px-4 py-3 text-gray-700 hover:bg-green-50 cursor-pointer flex items-center gap-3 border-b border-gray-50"
+                    >
+                      <div className="w-7 h-7 bg-green-100 text-green-600 rounded-full flex items-center justify-center shrink-0">
+                        {geoLocating
+                          ? <div className="w-3.5 h-3.5 border-2 border-green-500/40 border-t-green-600 rounded-full animate-spin" />
+                          : <Navigation className="w-3.5 h-3.5" />}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-sm text-green-700">
+                          {geoLocating ? 'Getting your location...' : 'Use my current location'}
+                        </div>
+                        <div className="text-xs text-gray-400">Automatically detect where you are</div>
+                      </div>
+                    </div>
+                    {/* Saved locations below */}
+                    {hanoiLocations.slice(0, 4).map((loc, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => { setFromLocation(loc); setShowFromSuggestions(false); }}
+                        className="px-4 py-3 text-gray-700 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-none flex items-center gap-3"
+                      >
+                        <MapPin className="w-4 h-4 text-gray-400" />
+                        <span className="font-medium text-sm">{loc}</span>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+
+                {/* Filtered location suggestions */}
                 {showFromSuggestions && fromLocation && filteredFromLocations.length > 0 && (
                   <motion.div 
                     initial={{ opacity: 0, y: -10 }}
@@ -129,6 +236,13 @@ export default function Home() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Geo error message */}
+              {geoError && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-red-50 border border-red-100 text-red-600 text-xs font-medium px-4 py-2 rounded-xl z-50">
+                  {geoError}
+                </div>
+              )}
             </div>
 
             {/* To Input */}
@@ -204,36 +318,85 @@ export default function Home() {
               >
                 <h2 className="font-bold text-gray-800 text-xl px-1">Suggested Routes</h2>
                 
-                <div className="space-y-4 pr-2 overflow-y-auto max-h-[400px]">
-                  {mockResults.map((result) => (
-                    <div key={result.id} className="bg-white p-5 rounded-[20px] shadow-sm border border-gray-100 flex flex-col gap-4 hover:shadow-md hover:border-gray-200 transition-all cursor-pointer">
-                      <div className="flex justify-between items-start">
-                        <div className="flex gap-2 items-center">
-                          <div className="bg-yellow-400 text-yellow-900 font-black px-4 py-2 rounded-xl text-lg flex items-center shadow-sm">
-                            <Bus className="w-5 h-5 mr-2" />
-                            {result.route}
+                <div className="space-y-4 pr-2 overflow-y-auto max-h-[450px]">
+                  {mockResults.map((result) => {
+                    const totalTime = result.steps.reduce((acc, s) => {
+                      const m = parseInt(s.time);
+                      return acc + (isNaN(m) ? 0 : m);
+                    }, 0);
+                    return (
+                      <div key={result.id} className="bg-white rounded-[20px] shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all cursor-pointer overflow-hidden">
+                        {/* Header row */}
+                        <div className="flex justify-between items-start p-5 pb-3">
+                          <div className="flex gap-2 items-center flex-wrap">
+                            {result.steps.map((step, si) => (
+                              <div key={si} className="flex items-center gap-2">
+                                <div className="bg-yellow-400 text-yellow-900 font-black px-3 py-1.5 rounded-xl text-base flex items-center gap-1.5 shadow-sm">
+                                  <Bus className="w-4 h-4" />
+                                  {step.bus}
+                                </div>
+                                {si < result.steps.length - 1 && (
+                                  <ArrowRight className="w-4 h-4 text-gray-400" />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="text-right shrink-0 ml-3">
+                            <div className="text-green-600 font-black text-xl">{result.eta}</div>
+                            <div className="text-gray-400 text-xs font-bold uppercase tracking-wide">Next Bus</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-green-600 font-black text-xl">{result.eta}</div>
-                          <div className="text-gray-400 text-xs font-bold uppercase tracking-wide">Live ETA</div>
+
+                        {/* Journey steps */}
+                        {result.changes > 0 && (
+                          <div className="px-5 pb-3">
+                            <div className="border border-dashed border-gray-200 rounded-xl p-3 space-y-2 bg-gray-50">
+                              {result.steps.map((step, si) => (
+                                <div key={si}>
+                                  <div className="flex items-start gap-2">
+                                    <div className="flex flex-col items-center shrink-0 mt-1">
+                                      <div className={`w-2.5 h-2.5 rounded-full ${si === 0 ? 'bg-green-500' : 'bg-blue-500'}`} />
+                                      {si < result.steps.length - 1 && <div className="w-0.5 h-5 bg-gray-300 my-0.5" />}
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold text-gray-700">{step.from}</span>
+                                        <span className="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-0.5 rounded-full">Bus {step.bus}</span>
+                                      </div>
+                                      <div className="flex items-center gap-3 mt-0.5">
+                                        <span className="text-xs text-gray-500">{step.time}</span>
+                                        <span className="text-[10px] text-purple-600 font-semibold">{step.operatingHours}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {si === result.steps.length - 1 && (
+                                    <div className="flex items-center gap-2 ml-4 mt-1">
+                                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                                      <span className="text-xs font-bold text-gray-700">{step.to}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Footer stats */}
+                        <div className="bg-gray-50 mx-3 mb-3 p-3 rounded-xl flex flex-wrap justify-between items-center text-sm font-semibold text-gray-600 gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-4 h-4 text-gray-400" />
+                            {totalTime} min total
+                          </div>
+                          <div className="w-1 h-1 bg-gray-300 rounded-full" />
+                          <div>{result.changes === 0 ? 'Direct' : `${result.changes} transfer${result.changes > 1 ? 's' : ''}`}</div>
+                          <div className="w-1 h-1 bg-gray-300 rounded-full" />
+                          <div className="text-blue-600">Every {result.frequency}</div>
+                          <div className="w-1 h-1 bg-gray-300 rounded-full" />
+                          <div className="text-gray-800 font-bold">{result.cost}</div>
                         </div>
                       </div>
-                      
-                      <div className="bg-gray-50 p-4 rounded-xl flex flex-wrap justify-between items-center text-sm font-semibold text-gray-600 gap-2">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-5 h-5 text-gray-400" />
-                          {result.time}
-                        </div>
-                        <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
-                        <div>{result.changes === 0 ? 'Direct' : `${result.changes} transfer`}</div>
-                        <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
-                        <div className="text-blue-600">Every {result.frequency}</div>
-                        <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
-                        <div className="text-gray-800 font-bold">{result.cost}</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </motion.div>
             ) : !isSearching ? (
@@ -277,7 +440,7 @@ export default function Home() {
       </div>
 
       {/* Right Column: Map Preview */}
-      <div className="hidden lg:block lg:w-2/3 bg-white rounded-[24px] shadow-sm border border-gray-200 overflow-hidden relative relative z-0">
+      <div className="hidden lg:block lg:flex-1 bg-white rounded-[24px] shadow-sm border border-gray-200 overflow-hidden relative z-0" style={{ height: '580px', minHeight: '580px' }}>
         <MapContainer 
           center={[21.0285, 105.8542]} 
           zoom={13} 
