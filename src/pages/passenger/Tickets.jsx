@@ -1,22 +1,56 @@
-import { useState } from 'react';
-import { QrCode, CreditCard, ChevronRight, CheckCircle2, ShieldCheck, History, ArrowRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { QrCode, CreditCard, ChevronRight, CheckCircle2, ShieldCheck, History, ArrowRight, X, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { addTicket, getTicketsByUser } from '../../lib/db';
 
 export default function Tickets() {
-  const [ticketType, setTicketType] = useState('single'); // 'single' or 'monthly'
+  const session = JSON.parse(localStorage.getItem('hanoibus_current_user') || '{}');
+
+  const [ticketType, setTicketType] = useState('single');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isStudent, setIsStudent] = useState(false);
+  const [studentId, setStudentId] = useState('');
+  const [currentTicket, setCurrentTicket] = useState(null);
+  const [purchases, setPurchases] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null); // For QR modal
+
+  // Load purchase history on mount
+  useEffect(() => {
+    if (session.email) {
+      setPurchases(getTicketsByUser(session.email));
+    }
+  }, []);
+
+  let price = '7,000 VND';
+  let label = 'Single Journey E-Ticket';
+  if (ticketType === 'monthly') {
+    price = isStudent ? '100,000 VND' : '200,000 VND';
+    label = isStudent ? 'Student Monthly Pass' : 'Monthly Digital Pass';
+  }
 
   const handleCheckout = () => {
     setIsProcessing(true);
     setTimeout(() => {
+      const ticket = addTicket({
+        email: session.email || 'guest',
+        type: ticketType,
+        label,
+        price,
+        isStudent: ticketType === 'monthly' && isStudent,
+        studentId: isStudent ? studentId : null,
+      });
+      setCurrentTicket(ticket);
+      setPurchases(getTicketsByUser(session.email));
       setIsProcessing(false);
       setIsSuccess(true);
     }, 1500);
   };
 
-  const price = ticketType === 'single' ? '7,000 VND' : '200,000 VND';
-  const label = ticketType === 'single' ? 'Single Journey E-Ticket' : 'Monthly Digital Pass';
+  const formatDate = (iso) => {
+    const d = new Date(iso);
+    return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row gap-8">
@@ -35,24 +69,14 @@ export default function Tickets() {
             }`}
           />
           <button
-            onClick={() => {
-              setTicketType('single');
-              setIsSuccess(false);
-            }}
-            className={`flex-1 py-3 text-sm font-bold z-10 transition-colors ${
-              ticketType === 'single' ? 'text-gray-800' : 'text-gray-500'
-            }`}
+            onClick={() => { setTicketType('single'); setIsSuccess(false); }}
+            className={`flex-1 py-3 text-sm font-bold z-10 transition-colors ${ticketType === 'single' ? 'text-gray-800' : 'text-gray-500'}`}
           >
             Single Journey
           </button>
           <button
-            onClick={() => {
-              setTicketType('monthly');
-              setIsSuccess(false);
-            }}
-            className={`flex-1 py-3 text-sm font-bold z-10 transition-colors ${
-              ticketType === 'monthly' ? 'text-gray-800' : 'text-gray-500'
-            }`}
+            onClick={() => { setTicketType('monthly'); setIsSuccess(false); }}
+            className={`flex-1 py-3 text-sm font-bold z-10 transition-colors ${ticketType === 'monthly' ? 'text-gray-800' : 'text-gray-500'}`}
           >
             Monthly Pass
           </button>
@@ -70,10 +94,8 @@ export default function Tickets() {
               {/* Payment Method */}
               <div className="space-y-3">
                 <h2 className="font-bold text-gray-800 text-lg">Select Payment Method</h2>
-                <div className="bg-white border-2 border-green-500 rounded-2xl p-5 flex items-center justify-between shadow-sm cursor-pointer transition-colors relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">
-                    DEFAULT
-                  </div>
+                <div className="bg-white border-2 border-green-500 rounded-2xl p-5 flex items-center justify-between shadow-sm cursor-pointer relative overflow-hidden">
+                  <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">DEFAULT</div>
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
                       <CreditCard className="w-6 h-6 text-green-600" />
@@ -85,7 +107,6 @@ export default function Tickets() {
                   </div>
                   <CheckCircle2 className="w-6 h-6 text-green-500" />
                 </div>
-                
                 <div className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center justify-between shadow-sm cursor-pointer hover:border-gray-300 transition-colors opacity-70 hover:opacity-100">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -100,10 +121,46 @@ export default function Tickets() {
                 </div>
               </div>
 
-              {/* Checkout Button */}
+              {ticketType === 'monthly' && (
+                <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100/50 space-y-4">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={isStudent}
+                        onChange={(e) => setIsStudent(e.target.checked)}
+                        className="peer appearance-none w-6 h-6 border-2 border-gray-300 rounded-lg checked:border-[var(--color-primary)] checked:bg-[var(--color-primary)] transition-all cursor-pointer"
+                      />
+                      <CheckCircle2 className="absolute w-4 h-4 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" />
+                    </div>
+                    <span className="font-bold text-gray-800 group-hover:text-[var(--color-primary)] transition-colors">I am a student (50% Off)</span>
+                  </label>
+                  <AnimatePresence>
+                    {isStudent && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="pt-2 pb-1">
+                          <input
+                            type="text"
+                            placeholder="Enter Student ID"
+                            value={studentId}
+                            onChange={(e) => setStudentId(e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-shadow"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+
               <button
                 onClick={handleCheckout}
-                disabled={isProcessing}
+                disabled={isProcessing || (ticketType === 'monthly' && isStudent && !studentId.trim())}
                 className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-bold py-4 rounded-2xl shadow-lg shadow-green-500/20 transition-all active:scale-[0.98] disabled:opacity-80 flex items-center justify-center gap-2 text-lg mt-8"
               >
                 {isProcessing ? (
@@ -121,34 +178,45 @@ export default function Tickets() {
               key="success-state"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col items-start space-y-4 max-w-lg"
+              className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col items-center space-y-4 max-w-lg"
             >
               <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-2">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
-              <div>
+              <div className="text-center w-full">
                 <h2 className="text-2xl font-bold text-gray-800">Payment Successful!</h2>
-                <p className="text-gray-500 text-base mt-1">
-                  Your {label} is now active and ready to use.
-                </p>
+                <p className="text-gray-500 text-base mt-1">Your {currentTicket?.label} is now active and ready to use.</p>
               </div>
-              <div className="w-full h-px bg-gray-100 my-4" />
+
+              {/* QR Code */}
+              <div className="flex flex-col items-center justify-center w-full py-4">
+                <div className="p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${currentTicket?.qrData}`}
+                    alt="Ticket QR Code"
+                    className="w-40 h-40 object-contain"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-3 font-medium uppercase tracking-wider">Scan this code when boarding</p>
+              </div>
+
+              <div className="w-full h-px bg-gray-100 my-2" />
               <div className="w-full space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Transaction ID</span>
-                  <span className="font-semibold text-gray-800">#HNB-94821</span>
+                  <span className="font-semibold text-gray-800">#{currentTicket?.id}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Date & Time</span>
-                  <span className="font-semibold text-gray-800">{new Date().toLocaleString()}</span>
+                  <span className="font-semibold text-gray-800">{currentTicket ? formatDate(currentTicket.purchasedAt) : ''}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Amount Paid</span>
-                  <span className="font-semibold text-gray-800">{price}</span>
+                  <span className="font-semibold text-gray-800">{currentTicket?.price}</span>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsSuccess(false)}
+              <button
+                onClick={() => { setIsSuccess(false); setCurrentTicket(null); setStudentId(''); setIsStudent(false); }}
                 className="w-full py-4 mt-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors"
               >
                 Buy Another Ticket
@@ -158,19 +226,18 @@ export default function Tickets() {
         </AnimatePresence>
       </div>
 
-      {/* Right Column: Ticket Preview */}
+      {/* Right Column: Ticket Preview + History */}
       <div className="w-full lg:w-1/2 flex flex-col gap-6">
         <h2 className="font-bold text-gray-800 text-xl">Ticket Preview</h2>
-        
+
         {/* Ticket Card */}
         <div className={`relative p-8 rounded-[32px] text-white shadow-2xl overflow-hidden transition-colors duration-500 w-full max-w-md ${
-          ticketType === 'single' 
-            ? 'bg-gradient-to-br from-blue-500 to-blue-700 shadow-blue-500/30' 
+          ticketType === 'single'
+            ? 'bg-gradient-to-br from-blue-500 to-blue-700 shadow-blue-500/30'
             : 'bg-gradient-to-br from-purple-500 to-purple-700 shadow-purple-500/30'
         }`}>
           <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-          
           <div className="flex justify-between items-start mb-12 relative z-10">
             <div>
               <div className="text-white/80 text-sm font-bold uppercase tracking-wider mb-2">
@@ -180,7 +247,6 @@ export default function Tickets() {
             </div>
             {ticketType === 'single' ? <QrCode className="w-12 h-12 opacity-80" /> : <CreditCard className="w-12 h-12 opacity-80" />}
           </div>
-
           <div className="flex justify-between items-end relative z-10">
             <div>
               <div className="text-white/80 text-sm mb-1">Total Amount</div>
@@ -193,37 +259,115 @@ export default function Tickets() {
           </div>
         </div>
 
-        {/* Transaction History Placeholder */}
-        <div className="max-w-md mt-4">
+        {/* Purchase History */}
+        <div className="max-w-md mt-2">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
               <History className="w-5 h-5 text-gray-500" />
               Recent Purchases
             </h3>
-            <button className="text-sm font-semibold text-[var(--color-primary)] flex items-center gap-1 hover:underline">
-              View all <ArrowRight className="w-4 h-4" />
-            </button>
+            <span className="text-sm text-gray-400 font-medium">{purchases.length} ticket{purchases.length !== 1 ? 's' : ''}</span>
           </div>
-          <div className="space-y-3">
-            {[1, 2].map((i) => (
-              <div key={i} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex gap-3 items-center">
-                  <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center">
-                    <QrCode className="w-5 h-5" />
+
+          {purchases.length === 0 ? (
+            <div className="bg-white p-6 rounded-2xl border border-dashed border-gray-200 text-center text-gray-400">
+              <QrCode className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm font-medium">No tickets purchased yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {purchases.map((ticket) => (
+                <motion.div
+                  key={ticket.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={() => setSelectedTicket(ticket)}
+                  className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm hover:shadow-md hover:border-[var(--color-primary)] transition-all cursor-pointer group"
+                >
+                  <div className="flex gap-3 items-center">
+                    <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center group-hover:bg-[var(--color-primary)] group-hover:text-white transition-colors">
+                      <QrCode className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-800 text-sm">{ticket.label}</div>
+                      <div className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3" />
+                        {formatDate(ticket.purchasedAt)}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-bold text-gray-800 text-sm">Single Journey E-Ticket</div>
-                    <div className="text-xs text-gray-500">May {10 - i}, 2026 • 08:30 AM</div>
+                  <div className="text-right">
+                    <div className="font-bold text-gray-800 text-sm">{ticket.price}</div>
+                    <div className="text-xs text-[var(--color-primary)] font-semibold mt-0.5">View QR →</div>
                   </div>
-                </div>
-                <div className="font-bold text-gray-800 text-sm">
-                  7,000 VND
-                </div>
-              </div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* QR Code Modal */}
+      <AnimatePresence>
+        {selectedTicket && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setSelectedTicket(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl p-8 shadow-2xl w-full max-w-sm flex flex-col items-center gap-5"
+            >
+              <div className="flex items-center justify-between w-full">
+                <h3 className="font-bold text-gray-800 text-lg">{selectedTicket.label}</h3>
+                <button
+                  onClick={() => setSelectedTicket(null)}
+                  className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${selectedTicket.qrData}`}
+                  alt="Ticket QR Code"
+                  className="w-48 h-48 object-contain"
+                />
+              </div>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Scan this code when boarding</p>
+
+              <div className="w-full h-px bg-gray-100" />
+              <div className="w-full space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Transaction ID</span>
+                  <span className="font-semibold text-gray-800">#{selectedTicket.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Purchased</span>
+                  <span className="font-semibold text-gray-800">{formatDate(selectedTicket.purchasedAt)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Amount</span>
+                  <span className="font-semibold text-gray-800">{selectedTicket.price}</span>
+                </div>
+                {selectedTicket.isStudent && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Student ID</span>
+                    <span className="font-semibold text-gray-800">{selectedTicket.studentId}</span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

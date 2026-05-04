@@ -1,6 +1,25 @@
+import { useState, useEffect } from 'react';
 import { Bus, AlertTriangle, MapPin, Search } from 'lucide-react';
+import { getBuses } from '../../lib/db';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Custom bus icon for the map
+const busIcon = new L.DivIcon({
+  html: `<div style="background-color: var(--color-primary); color: white; padding: 6px; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 2px solid white;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></div>`,
+  className: 'custom-bus-marker',
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+  popupAnchor: [0, -16]
+});
 
 export default function FleetOperations() {
+  const [buses, setBuses] = useState([]);
+
+  useEffect(() => {
+    setBuses(getBuses());
+  }, []);
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col space-y-4">
       <div className="flex justify-between items-center">
@@ -18,49 +37,52 @@ export default function FleetOperations() {
       </div>
 
       <div className="flex-1 flex gap-4 overflow-hidden">
-        {/* Map Placeholder */}
-        <div className="flex-1 bg-white rounded-2xl border border-gray-200 relative overflow-hidden flex items-center justify-center bg-gray-100">
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#CBD5E1 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-          <div className="text-center z-10">
-            <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-            <p className="text-gray-500 font-medium">Map Interface Integration (Mapbox/Google Maps)</p>
-            <p className="text-sm text-gray-400">Live coordinates polling active every 15s</p>
-          </div>
-          
-          {/* Mock Bus Markers */}
-          <div className="absolute top-1/4 left-1/3 w-8 h-8 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center font-bold text-xs shadow-lg transform -translate-x-1/2 -translate-y-1/2 cursor-pointer ring-4 ring-green-100 animate-pulse">
-            32
-          </div>
-          <div className="absolute top-1/2 left-1/2 w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold text-xs shadow-lg transform -translate-x-1/2 -translate-y-1/2 cursor-pointer ring-4 ring-orange-100">
-            14
-          </div>
+        {/* Live Map */}
+        <div className="flex-1 bg-white rounded-2xl border border-gray-200 relative overflow-hidden flex items-center justify-center bg-gray-100 z-0">
+          <MapContainer 
+            center={[21.0285, 105.8542]} 
+            zoom={12} 
+            className="w-full h-full"
+            zoomControl={false}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            />
+            {buses.filter(bus => bus.location).map(bus => (
+              <Marker key={bus.id} position={[bus.location.lat, bus.location.lng]} icon={busIcon}>
+                <Popup className="rounded-xl overflow-hidden">
+                  <div className="font-bold text-gray-800 text-sm mb-1">Bus {bus.routeId.replace('R', '')}</div>
+                  <div className="text-xs text-gray-500">Plate: {bus.plate}</div>
+                  <div className="text-xs text-gray-500">Driver: {bus.driver}</div>
+                  <div className="text-xs text-gray-500 font-bold mt-1">Status: {bus.status}</div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
         </div>
 
         {/* Fleet Sidebar */}
         <div className="w-80 bg-white rounded-2xl border border-gray-200 flex flex-col">
           <div className="p-4 border-b border-gray-200 bg-gray-50 rounded-t-2xl">
             <h3 className="font-bold text-gray-800">Active Fleet</h3>
-            <p className="text-xs text-gray-500">854 buses on road</p>
+            <p className="text-xs text-gray-500">{buses.length} buses registered</p>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {[
-              { id: '29B-123.45', route: '32', status: 'On Time', driver: 'Nguyen Van A' },
-              { id: '29B-987.65', route: '14', status: 'Delayed', driver: 'Tran Thi B', delay: '15m' },
-              { id: '29B-456.78', route: '01', status: 'On Time', driver: 'Le Van C' },
-            ].map((bus, idx) => (
-              <div key={idx} className="border border-gray-100 rounded-xl p-3 hover:border-[var(--color-primary)] cursor-pointer transition-colors shadow-sm">
+            {buses.map((bus) => (
+              <div key={bus.id} className="border border-gray-100 rounded-xl p-3 hover:border-[var(--color-primary)] cursor-pointer transition-colors shadow-sm">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="bg-gray-100 px-2 py-1 rounded font-bold text-sm">Bus {bus.route}</div>
-                    <span className="font-bold text-gray-800 text-sm">{bus.id}</span>
+                    <div className="bg-gray-100 px-2 py-1 rounded font-bold text-sm">Bus {bus.routeId.replace('R', '')}</div>
+                    <span className="font-bold text-gray-800 text-sm">{bus.plate}</span>
                   </div>
-                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${bus.status === 'On Time' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${bus.status === 'On Route' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
                     {bus.status}
                   </span>
                 </div>
                 <div className="text-xs text-gray-500 flex justify-between">
                   <span>Driver: {bus.driver}</span>
-                  {bus.delay && <span className="text-orange-500 font-medium">Delay: {bus.delay}</span>}
+                  {bus.status === 'Maintenance' && <span className="text-orange-500 font-medium">In Shop</span>}
                 </div>
               </div>
             ))}

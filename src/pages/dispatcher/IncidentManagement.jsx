@@ -1,20 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertTriangle, Filter, Search, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import IncidentModal from '../../components/IncidentModal';
+import { getIncidents, updateIncident } from '../../lib/db';
 
 export default function IncidentManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [incidents, setIncidents] = useState([
-    { id: 'INC-001', route: 'Route 32', type: 'Heavy Traffic', time: '10 mins ago', severity: 'warning', status: 'Active' },
-    { id: 'INC-002', route: 'Route 01', type: 'Vehicle Breakdown', time: '25 mins ago', severity: 'critical', status: 'Active' },
-    { id: 'INC-003', route: 'Route 08', type: 'Detour', time: '1 hour ago', severity: 'info', status: 'Active' },
-    { id: 'INC-004', route: 'Route 12', type: 'Accident', time: '2 hours ago', severity: 'critical', status: 'Resolved' },
-    { id: 'INC-005', route: 'Route 44', type: 'Roadwork Delay', time: '3 hours ago', severity: 'warning', status: 'Resolved' },
-  ]);
+  const [incidents, setIncidents] = useState([]);
+
+  useEffect(() => {
+    setIncidents(getIncidents());
+  }, []);
 
   const handleResolve = (id) => {
-    setIncidents(incidents.map(inc => inc.id === id ? { ...inc, status: 'Resolved' } : inc));
+    const updated = updateIncident(id, { status: 'Resolved' });
+    if (updated) {
+      setIncidents(getIncidents());
+    }
+  };
+
+  const getSeverity = (type) => {
+    if (['Breakdown', 'Accident'].includes(type)) return 'critical';
+    if (['Traffic', 'Roadwork Delay'].includes(type)) return 'warning';
+    return 'info';
+  };
+
+  const formatTime = (ts) => {
+    if (!ts) return 'Just now';
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -69,27 +83,29 @@ export default function IncidentManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {incidents.map((inc) => (
-                <tr key={inc.id} className={`transition-colors ${inc.status === 'Resolved' ? 'bg-gray-50/30' : 'hover:bg-gray-50/50'}`}>
-                  <td className="p-4 pl-6 font-bold text-gray-700">{inc.id}</td>
-                  <td className="p-4">
-                    <div className="font-bold text-gray-800 bg-gray-100 w-max px-3 py-1 rounded-lg border border-gray-200">
-                      {inc.route}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium text-gray-800 text-sm">{inc.type}</span>
-                      <span className={`w-max px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                        inc.severity === 'critical' ? 'bg-red-100 text-red-700' :
-                        inc.severity === 'warning' ? 'bg-amber-100 text-amber-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>
-                        {inc.severity}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-gray-500 text-sm font-medium">{inc.time}</td>
+              {incidents.map((inc) => {
+                const severity = getSeverity(inc.type);
+                return (
+                  <tr key={inc.id} className={`transition-colors ${inc.status === 'Resolved' ? 'bg-gray-50/30' : 'hover:bg-gray-50/50'}`}>
+                    <td className="p-4 pl-6 font-bold text-gray-700">{inc.id}</td>
+                    <td className="p-4">
+                      <div className="font-bold text-gray-800 bg-gray-100 w-max px-3 py-1 rounded-lg border border-gray-200">
+                        {inc.routeId ? `Route ${inc.routeId.replace('R', '')}` : inc.route}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium text-gray-800 text-sm">{inc.type}</span>
+                        <span className={`w-max px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          severity === 'critical' ? 'bg-red-100 text-red-700' :
+                          severity === 'warning' ? 'bg-amber-100 text-amber-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {severity}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-gray-500 text-sm font-medium">{formatTime(inc.timestamp || inc.time)}</td>
                   <td className="p-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 ${
                       inc.status === 'Active' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-green-100 text-green-700 border border-green-200'
@@ -111,8 +127,9 @@ export default function IncidentManagement() {
                       <span className="text-gray-400 text-sm font-medium">Archived</span>
                     )}
                   </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

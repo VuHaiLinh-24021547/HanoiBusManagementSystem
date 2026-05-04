@@ -2,20 +2,56 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bus, Mail, Lock, KeyRound, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getAccounts, addAccount } from '../lib/db';
 
 export default function Login() {
   const [step, setStep] = useState(1); // 1: Email/Pass, 2: OTP
+  const [isRegistering, setIsRegistering] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [role, setRole] = useState('passenger'); // 'passenger' or 'admin'
+  const [role, setRole] = useState('passenger');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = (e) => {
     e.preventDefault();
+    setError('');
     setIsLoading(true);
+    
     setTimeout(() => {
       setIsLoading(false);
+      // Validate with db
+      const users = getAccounts();
+      const user = users.find(u => u.email === email && u.password === password && u.role === role);
+      
+      if (user || (email === 'demo@hanoibus.vn' && password === 'demo')) { // Fallback demo account
+        setStep(2);
+      } else {
+        setError('Invalid email, password, or role.');
+      }
+    }, 1000);
+  };
+
+  const handleRegister = (e) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    
+    setTimeout(() => {
+      setIsLoading(false);
+      const users = getAccounts();
+      if (users.find(u => u.email === email)) {
+        setError('Email already exists.');
+        return;
+      }
+      
+      addAccount({ name, email, password, role });
+      
+      // Auto login after registration
       setStep(2);
-    }, 1500);
+    }, 1000);
   };
 
   const handleVerifyOTP = (e) => {
@@ -23,12 +59,18 @@ export default function Login() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
+      
+      // Save current session
+      localStorage.setItem('hanoibus_current_user', JSON.stringify({ email, role, name: name || 'User' }));
+
       if (role === 'admin') {
         navigate('/admin');
+      } else if (role === 'dispatcher') {
+        navigate('/dispatcher');
       } else {
         navigate('/');
       }
-    }, 1500);
+    }, 1000);
   };
 
   return (
@@ -49,32 +91,61 @@ export default function Login() {
           </p>
         </div>
 
-        <div className="flex justify-center space-x-4 mb-4">
+        <div className="flex justify-center space-x-2 mb-4">
           <button
             className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${role === 'passenger' ? 'bg-green-100 text-[var(--color-primary-dark)]' : 'text-gray-500 hover:bg-gray-100'}`}
             onClick={() => setRole('passenger')}
           >
             Passenger
           </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${role === 'admin' ? 'bg-slate-800 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-            onClick={() => setRole('admin')}
-          >
-            Admin/Dispatcher
-          </button>
+          {!isRegistering && (
+            <>
+              <button
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${role === 'admin' ? 'bg-slate-800 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+                onClick={() => setRole('admin')}
+              >
+                Admin
+              </button>
+              <button
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${role === 'dispatcher' ? 'bg-blue-100 text-blue-800' : 'text-gray-500 hover:bg-gray-100'}`}
+                onClick={() => setRole('dispatcher')}
+              >
+                Dispatcher
+              </button>
+            </>
+          )}
         </div>
 
         <AnimatePresence mode="wait">
           {step === 1 ? (
             <motion.form 
-              key="step1"
+              key={isRegistering ? "register" : "login"}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               className="mt-8 space-y-6" 
-              onSubmit={handleLogin}
+              onSubmit={isRegistering ? handleRegister : handleLogin}
             >
+              {error && (
+                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl text-center font-medium">
+                  {error}
+                </div>
+              )}
+              
               <div className="space-y-4">
+                {isRegistering && (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="block w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
+                      placeholder="Full Name"
+                    />
+                  </div>
+                )}
+                
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Mail className="h-5 w-5 text-gray-400" />
@@ -82,6 +153,8 @@ export default function Login() {
                   <input
                     type="email"
                     required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
                     placeholder="Email address"
                   />
@@ -93,19 +166,23 @@ export default function Login() {
                   <input
                     type="password"
                     required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
                     placeholder="Password"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end">
-                <div className="text-sm">
-                  <a href="#" className="font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-dark)]">
-                    Forgot your password?
-                  </a>
+              {!isRegistering && (
+                <div className="flex items-center justify-end">
+                  <div className="text-sm">
+                    <a href="#" className="font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-dark)]">
+                      Forgot your password?
+                    </a>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <button
                 type="submit"
@@ -116,7 +193,7 @@ export default function Login() {
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <>
-                    Sign in
+                    {isRegistering ? 'Create Account' : 'Sign in'}
                     <span className="absolute right-4 flex items-center inset-y-0">
                       <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </span>
@@ -176,12 +253,21 @@ export default function Login() {
           )}
         </AnimatePresence>
         
-        {step === 1 && role === 'passenger' && (
+        {step === 1 && (
           <p className="mt-8 text-center text-sm text-gray-600">
-            Don't have an account?{' '}
-            <a href="#" className="font-bold text-[var(--color-primary)] hover:underline">
-              Register here
-            </a>
+            {isRegistering ? "Already have an account? " : "Don't have an account? "}
+            <button 
+              onClick={() => {
+                if (!isRegistering) {
+                  setRole('passenger');
+                }
+                setIsRegistering(!isRegistering);
+                setError('');
+              }}
+              className="font-bold text-[var(--color-primary)] hover:underline focus:outline-none"
+            >
+              {isRegistering ? "Sign in here" : "Register here"}
+            </button>
           </p>
         )}
       </div>

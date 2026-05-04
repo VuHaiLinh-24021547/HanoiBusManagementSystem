@@ -1,6 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapPin, Navigation, Clock, ChevronRight, Bus, Search, Map as MapIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { getBuses } from '../../lib/db';
+
+// Custom bus icon for the map
+const busIcon = new L.DivIcon({
+  html: `<div style="background-color: var(--color-primary); color: white; padding: 6px; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 2px solid white;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></div>`,
+  className: 'custom-bus-marker',
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+  popupAnchor: [0, -16]
+});
 
 export default function Home() {
   const [fromLocation, setFromLocation] = useState('');
@@ -10,6 +23,11 @@ export default function Home() {
   
   const [showFromSuggestions, setShowFromSuggestions] = useState(false);
   const [showToSuggestions, setShowToSuggestions] = useState(false);
+  const [buses, setBuses] = useState([]);
+
+  useEffect(() => {
+    setBuses(getBuses().filter(b => b.location));
+  }, []);
 
   const hanoiLocations = [
     'Hoan Kiem Lake',
@@ -28,8 +46,8 @@ export default function Home() {
   const filteredToLocations = hanoiLocations.filter(loc => loc.toLowerCase().includes(toLocation.toLowerCase()));
 
   const mockResults = [
-    { id: 1, route: '32', time: '45 min', eta: '5 min', changes: 0, cost: '7,000 VND' },
-    { id: 2, route: '01 → 08', time: '55 min', eta: '2 min', changes: 1, cost: '14,000 VND' }
+    { id: 1, route: '32', time: '45 min', eta: '5 min', changes: 0, cost: '7,000 VND', frequency: '15 mins' },
+    { id: 2, route: '01 → 08', time: '55 min', eta: '2 min', changes: 1, cost: '14,000 VND', frequency: '10-20 mins' }
   ];
 
   const handleSearch = (e) => {
@@ -202,13 +220,15 @@ export default function Home() {
                         </div>
                       </div>
                       
-                      <div className="bg-gray-50 p-4 rounded-xl flex justify-between items-center text-sm font-semibold text-gray-600">
+                      <div className="bg-gray-50 p-4 rounded-xl flex flex-wrap justify-between items-center text-sm font-semibold text-gray-600 gap-2">
                         <div className="flex items-center gap-2">
                           <Clock className="w-5 h-5 text-gray-400" />
                           {result.time}
                         </div>
                         <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
                         <div>{result.changes === 0 ? 'Direct' : `${result.changes} transfer`}</div>
+                        <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
+                        <div className="text-blue-600">Every {result.frequency}</div>
                         <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
                         <div className="text-gray-800 font-bold">{result.cost}</div>
                       </div>
@@ -257,19 +277,37 @@ export default function Home() {
       </div>
 
       {/* Right Column: Map Preview */}
-      <div className="hidden lg:flex lg:w-2/3 bg-white rounded-[24px] shadow-sm border border-gray-200 overflow-hidden relative">
-        <div className="absolute inset-0 bg-slate-100 opacity-50" style={{ backgroundImage: 'radial-gradient(#CBD5E1 2px, transparent 2px)', backgroundSize: '30px 30px' }} />
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 z-10">
-          <div className="w-24 h-24 bg-white rounded-full shadow-lg flex items-center justify-center text-blue-500 mb-6 border-4 border-blue-50">
-            <MapIcon className="w-12 h-12" />
+      <div className="hidden lg:block lg:w-2/3 bg-white rounded-[24px] shadow-sm border border-gray-200 overflow-hidden relative relative z-0">
+        <MapContainer 
+          center={[21.0285, 105.8542]} 
+          zoom={13} 
+          className="w-full h-full"
+          zoomControl={false}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          />
+          {buses.map(bus => (
+            <Marker key={bus.id} position={[bus.location.lat, bus.location.lng]} icon={busIcon}>
+              <Popup className="rounded-xl overflow-hidden">
+                <div className="font-bold text-gray-800 text-sm mb-1">Bus {bus.routeId.replace('R', '')}</div>
+                <div className="text-xs text-gray-500">Plate: {bus.plate}</div>
+                <div className="text-xs text-gray-500">Status: {bus.status}</div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+        
+        {/* Overlay when no search is active (optional, maybe keep it clear so they can see the map) */}
+        {!showResults && !isSearching && (
+          <div className="absolute top-6 left-6 z-[400] bg-white/90 backdrop-blur px-6 py-4 rounded-2xl shadow-lg border border-gray-100 max-w-sm">
+            <h2 className="text-xl font-bold text-slate-800 mb-1">Live Transit Map</h2>
+            <p className="text-slate-500 text-sm">
+              Select a destination on the left to plan your route, or interact with the map to view live bus locations.
+            </p>
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Explore the Network</h2>
-          <p className="text-slate-500 max-w-md">
-            {showResults 
-              ? "Your selected route is displayed on the map. You can track your bus in real-time."
-              : "Select a destination to view route options, bus stops, and real-time transit data on the interactive map."}
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );

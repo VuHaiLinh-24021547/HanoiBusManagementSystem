@@ -1,0 +1,188 @@
+// src/lib/db.js
+
+const DB_KEY = 'hanoibus_db';
+
+const mockRoutes = [
+  { id: 'R01', name: 'Route 01', start: 'Gia Lam', end: 'Yen Nghia', frequency: '15 mins', status: 'Active' },
+  { id: 'R02', name: 'Route 02', start: 'Bac Co', end: 'Yen Nghia', frequency: '20 mins', status: 'Active' },
+  { id: 'R08', name: 'Route 08', start: 'Long Bien', end: 'Dong My', frequency: '10 mins', status: 'Active' },
+  { id: 'R32', name: 'Route 32', start: 'Giap Bat', end: 'Nhon', frequency: '15 mins', status: 'Maintenance' },
+  ...Array.from({ length: 46 }).map((_, i) => ({
+    id: `R${(i + 10).toString().padStart(2, '0')}`,
+    name: `Route ${i + 10}`,
+    start: ['Giap Bat', 'My Dinh', 'Gia Lam', 'Long Bien', 'Cau Giay', 'Yen Nghia', 'Nam Thang Long', 'Ha Dong'][i % 8],
+    end: ['Noi Bai', 'Dong Anh', 'Thanh Tri', 'Hoang Mai', 'Tay Ho', 'Ba Dinh', 'Hai Ba Trung', 'Tu Liem'][i % 8],
+    frequency: `${[10, 15, 20, 25, 30][i % 5]} mins`,
+    status: i % 7 === 0 ? 'Maintenance' : 'Active'
+  }))
+];
+
+const mockBuses = mockRoutes.map((r, i) => ({
+  id: `B${100 + i}`,
+  plate: `29B-${Math.floor(Math.random() * 900 + 100)}.${Math.floor(Math.random() * 90 + 10)}`,
+  routeId: r.id,
+  status: Math.random() > 0.2 ? 'On Route' : 'Maintenance',
+  driver: `Driver ${i + 1}`,
+  capacity: 60,
+  location: Math.random() > 0.1 ? { lat: 21.0285 + (Math.random() - 0.5) * 0.1, lng: 105.8542 + (Math.random() - 0.5) * 0.1 } : null
+}));
+
+const initialData = {
+  accounts: [
+    { id: 'A1', name: 'Demo Passenger', email: 'passenger@hanoibus.vn', password: 'demo', role: 'passenger', address: '12 Ly Thai To, Hoan Kiem, Hanoi', contact: '+84 123 456 789' },
+    { id: 'A2', name: 'Demo Admin', email: 'admin@hanoibus.vn', password: 'demo', role: 'admin', address: '', contact: '' },
+    { id: 'A3', name: 'Demo Dispatcher', email: 'dispatcher@hanoibus.vn', password: 'demo', role: 'dispatcher', address: '', contact: '' }
+  ],
+  routes: mockRoutes,
+  buses: mockBuses,
+  incidents: [
+    { id: 'INC-001', type: 'Breakdown', busId: 'B101', routeId: 'R01', status: 'Active', description: 'Engine overheating near Long Bien', timestamp: new Date(Date.now() - 3600000).toISOString(), reportedBy: 'A3' },
+    { id: 'INC-002', type: 'Traffic', busId: 'B301', routeId: 'R08', status: 'Resolved', description: 'Heavy traffic at Nguyen Trai', timestamp: new Date(Date.now() - 86400000).toISOString(), reportedBy: 'A3' }
+  ],
+  tickets: []
+};
+
+// Initialize DB if empty
+const initDB = () => {
+  // Always regenerate data if we don't have exactly 50 routes or 50 buses
+  const currentDb = JSON.parse(localStorage.getItem(DB_KEY) || 'null');
+  if (!currentDb || !currentDb.routes || currentDb.routes.length < 50 || currentDb.buses.length < 50) {
+    localStorage.setItem(DB_KEY, JSON.stringify(initialData));
+  }
+  
+  // Migrate old 'hanoibus_users' if present
+  const oldUsers = JSON.parse(localStorage.getItem('hanoibus_users') || '[]');
+  if (oldUsers.length > 0) {
+    const db = getDB();
+    oldUsers.forEach(user => {
+      if (!db.accounts.find(a => a.email === user.email)) {
+        db.accounts.push({ id: 'A' + Date.now() + Math.floor(Math.random()*1000), ...user });
+      }
+    });
+    saveDB(db);
+    localStorage.removeItem('hanoibus_users');
+  }
+};
+
+const getDB = () => JSON.parse(localStorage.getItem(DB_KEY));
+const saveDB = (data) => localStorage.setItem(DB_KEY, JSON.stringify(data));
+
+// Call initialization immediately
+initDB();
+
+// --- Accounts ---
+export const getAccounts = () => getDB().accounts;
+export const addAccount = (account) => {
+  const db = getDB();
+  const newAccount = { id: 'A' + Date.now(), ...account };
+  db.accounts.push(newAccount);
+  saveDB(db);
+  return newAccount;
+};
+export const getAccountByEmail = (email) => getDB().accounts.find(a => a.email === email);
+export const updateAccount = (id, updates) => {
+  const db = getDB();
+  const index = db.accounts.findIndex(a => a.id === id);
+  if (index !== -1) {
+    db.accounts[index] = { ...db.accounts[index], ...updates };
+    saveDB(db);
+    return db.accounts[index];
+  }
+  return null;
+};
+
+// --- Routes ---
+export const getRoutes = () => getDB().routes;
+export const addRoute = (route) => {
+  const db = getDB();
+  const newRoute = { id: 'R' + Date.now(), ...route };
+  db.routes.push(newRoute);
+  saveDB(db);
+  return newRoute;
+};
+export const updateRoute = (id, updates) => {
+  const db = getDB();
+  const index = db.routes.findIndex(r => r.id === id || r.id === Number(id));
+  if (index !== -1) {
+    db.routes[index] = { ...db.routes[index], ...updates };
+    saveDB(db);
+    return db.routes[index];
+  }
+  return null;
+};
+export const deleteRoute = (id) => {
+  const db = getDB();
+  db.routes = db.routes.filter(r => r.id !== id && r.id !== Number(id));
+  saveDB(db);
+};
+
+// --- Buses ---
+export const getBuses = () => getDB().buses;
+export const addBus = (bus) => {
+  const db = getDB();
+  const newBus = { id: 'B' + Date.now(), ...bus };
+  db.buses.push(newBus);
+  saveDB(db);
+  return newBus;
+};
+export const updateBus = (id, updates) => {
+  const db = getDB();
+  const index = db.buses.findIndex(b => b.id === id);
+  if (index !== -1) {
+    db.buses[index] = { ...db.buses[index], ...updates };
+    saveDB(db);
+    return db.buses[index];
+  }
+  return null;
+};
+export const deleteBus = (id) => {
+  const db = getDB();
+  db.buses = db.buses.filter(b => b.id !== id);
+  saveDB(db);
+};
+
+// --- Incidents ---
+export const getIncidents = () => getDB().incidents;
+export const addIncident = (incident) => {
+  const db = getDB();
+  const newIncident = { id: 'INC-' + Date.now(), timestamp: new Date().toISOString(), ...incident };
+  db.incidents.push(newIncident);
+  saveDB(db);
+  return newIncident;
+};
+export const updateIncident = (id, updates) => {
+  const db = getDB();
+  const index = db.incidents.findIndex(i => i.id === id);
+  if (index !== -1) {
+    db.incidents[index] = { ...db.incidents[index], ...updates };
+    saveDB(db);
+    return db.incidents[index];
+  }
+  return null;
+};
+export const deleteIncident = (id) => {
+  const db = getDB();
+  db.incidents = db.incidents.filter(i => i.id !== id);
+  saveDB(db);
+};
+
+// --- Tickets ---
+export const getTicketsByUser = (email) => {
+  const db = getDB();
+  if (!db.tickets) return [];
+  return db.tickets.filter(t => t.email === email).sort((a, b) => new Date(b.purchasedAt) - new Date(a.purchasedAt));
+};
+export const addTicket = (ticket) => {
+  const db = getDB();
+  if (!db.tickets) db.tickets = [];
+  const txId = 'HNB-' + Math.floor(Math.random() * 90000 + 10000);
+  const newTicket = {
+    id: txId,
+    qrData: `${txId}-${ticket.type}${ticket.isStudent ? '-STUDENT' : ''}`,
+    purchasedAt: new Date().toISOString(),
+    ...ticket
+  };
+  db.tickets.push(newTicket);
+  saveDB(db);
+  return newTicket;
+};

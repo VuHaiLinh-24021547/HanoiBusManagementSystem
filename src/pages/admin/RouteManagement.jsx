@@ -1,17 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, Filter, MoreVertical, Route as RouteIcon } from 'lucide-react';
 import RouteFormModal from '../../components/RouteFormModal';
+import { getRoutes } from '../../lib/db';
 
 export default function RouteManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [routes, setRoutes] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  const mockRoutes = [
-    { id: 1, name: 'Route 01', start: 'Gia Lam', end: 'Yen Nghia', frequency: '15 mins', status: 'Active' },
-    { id: 2, name: 'Route 02', start: 'Bac Co', end: 'Yen Nghia', frequency: '20 mins', status: 'Active' },
-    { id: 3, name: 'Route 08', start: 'Long Bien', end: 'Dong My', frequency: '10 mins', status: 'Active' },
-    { id: 4, name: 'Route 32', start: 'Giap Bat', end: 'Nhon', frequency: '15 mins', status: 'Maintenance' },
-  ];
+  useEffect(() => {
+    setRoutes(getRoutes());
+  }, []);
 
+  // Filter routes based on search query
+  const filteredRoutes = routes.filter(route => 
+    route.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    route.start.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    route.end.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredRoutes.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRoutes = filteredRoutes.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to first page when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -39,7 +57,9 @@ export default function RouteManagement() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input 
             type="text" 
-            placeholder="Search routes..." 
+            placeholder="Search routes by name or terminal..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
           />
         </div>
@@ -64,43 +84,85 @@ export default function RouteManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {mockRoutes.map((route) => (
-                <tr key={route.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="p-4 pl-6">
-                    <div className="font-bold text-gray-800 bg-gray-100 w-max px-3 py-1 rounded-lg border border-gray-200">
-                      {route.name}
-                    </div>
-                  </td>
-                  <td className="p-4 font-medium text-gray-600">{route.start}</td>
-                  <td className="p-4 font-medium text-gray-600">{route.end}</td>
-                  <td className="p-4 text-gray-500 text-sm">{route.frequency}</td>
-                  <td className="p-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      route.status === 'Active' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-amber-100 text-amber-700 border border-amber-200'
-                    }`}>
-                      {route.status}
-                    </span>
-                  </td>
-                  <td className="p-4 pr-6 text-right">
-                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors inline-flex items-center justify-center">
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
+              {paginatedRoutes.length > 0 ? (
+                paginatedRoutes.map((route) => (
+                  <tr key={route.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="p-4 pl-6">
+                      <div className="font-bold text-gray-800 bg-gray-100 w-max px-3 py-1 rounded-lg border border-gray-200">
+                        {route.name}
+                      </div>
+                    </td>
+                    <td className="p-4 font-medium text-gray-600">{route.start}</td>
+                    <td className="p-4 font-medium text-gray-600">{route.end}</td>
+                    <td className="p-4 text-gray-500 text-sm">{route.frequency}</td>
+                    <td className="p-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        route.status === 'Active' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-amber-100 text-amber-700 border border-amber-200'
+                      }`}>
+                        {route.status}
+                      </span>
+                    </td>
+                    <td className="p-4 pr-6 text-right">
+                      <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors inline-flex items-center justify-center">
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="p-8 text-center text-gray-500 font-medium">
+                    No routes found matching your search.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
         
         {/* Pagination */}
-        <div className="p-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
-          <div>Showing 1 to 4 of 4 entries</div>
-          <div className="flex gap-1">
-            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50" disabled>Prev</button>
-            <button className="px-3 py-1 bg-[var(--color-primary)] text-white rounded-md font-medium">1</button>
-            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50" disabled>Next</button>
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
+            <div>Showing {filteredRoutes.length === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredRoutes.length)} of {filteredRoutes.length} entries</div>
+            <div className="flex gap-1">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                Prev
+              </button>
+              
+              {/* Page Numbers */}
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                    currentPage === i + 1 
+                      ? 'bg-[var(--color-primary)] text-white' 
+                      : 'border border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                Next
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+        {totalPages <= 1 && filteredRoutes.length > 0 && (
+          <div className="p-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
+            <div>Showing all {filteredRoutes.length} entries</div>
+          </div>
+        )}
       </div>
 
       <RouteFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
