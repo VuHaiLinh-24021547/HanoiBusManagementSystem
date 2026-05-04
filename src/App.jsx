@@ -15,6 +15,14 @@ import Dashboard from './pages/admin/Dashboard';
 import FleetOperations from './pages/admin/FleetOperations';
 import RouteManagement from './pages/admin/RouteManagement';
 
+// Dispatcher Pages
+import DispatcherLayout from './components/DispatcherLayout';
+import DispatcherDashboard from './pages/dispatcher/Dashboard';
+import IncidentManagement from './pages/dispatcher/IncidentManagement';
+
+// Prototype Tools
+import PrototypeSwitcher from './components/PrototypeSwitcher';
+
 function AnimatedRoutes() {
   const location = useLocation();
   
@@ -37,6 +45,12 @@ function AnimatedRoutes() {
           <Route path="fleet" element={<FleetOperations />} />
           <Route path="routes" element={<RouteManagement />} />
         </Route>
+
+        {/* Dispatcher Routes */}
+        <Route path="/dispatcher" element={<DispatcherLayout />}>
+          <Route index element={<DispatcherDashboard />} />
+          <Route path="incidents" element={<IncidentManagement />} />
+        </Route>
       </Routes>
     </AnimatePresence>
   );
@@ -46,6 +60,7 @@ function App() {
   return (
     <Router>
       <AnimatedRoutes />
+      <PrototypeSwitcher />
     </Router>
   );
 }

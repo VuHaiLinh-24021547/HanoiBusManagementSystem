@@ -32,7 +32,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-8 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute top-0 left-0 w-full h-1/3 bg-[var(--color-primary)] rounded-b-[40%] shadow-lg transform -translate-y-10" />
       
