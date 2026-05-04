@@ -65,6 +65,22 @@ const initDB = () => {
   if (!currentDb || !currentDb.routes || currentDb.routes.length < 50 || currentDb.buses.length < 50) {
     localStorage.setItem(DB_KEY, JSON.stringify(initialData));
   }
+
+  // Migration: patch any existing route missing operatingHours
+  const db = JSON.parse(localStorage.getItem(DB_KEY));
+  let migrated = false;
+  db.routes = db.routes.map((route, i) => {
+    if (!route.operatingHours) {
+      // Find the matching seed route first, fall back to preset cycle
+      const seedRoute = initialData.routes.find(r => r.id === route.id);
+      migrated = true;
+      return { ...route, operatingHours: seedRoute?.operatingHours || opHoursPresets[i % opHoursPresets.length] };
+    }
+    return route;
+  });
+  if (migrated) {
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+  }
   
   // Migrate old 'hanoibus_users' if present
   const oldUsers = JSON.parse(localStorage.getItem('hanoibus_users') || '[]');
