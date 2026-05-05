@@ -5,8 +5,9 @@ import clsx from 'clsx';
 export default function AdminLayout() {
   const sidebarItems = [
     { to: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/admin/fleet', icon: Bus, label: 'Live Operations' },
+    { to: '/admin/fleet', icon: Bus, label: 'Fleet Management' },
     { to: '/admin/routes', icon: Map, label: 'Routes & Schedules' },
+    { to: '/admin/users', icon: Users, label: 'Users' },
   ];
 
   return (
@@ -55,9 +56,10 @@ export default function AdminLayout() {
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <header className="h-16 bg-white border-b border-gray-200 flex items-center px-8 justify-between sticky top-0 z-10 shadow-sm">
-          <h1 className="text-xl font-semibold text-gray-800">Admin Portal</h1>
+          <h1 className="text-xl font-semibold text-gray-800">Administrator Portal</h1>
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold text-gray-600">
+            <span className="text-sm font-medium text-gray-600">Admin User</span>
+            <div className="w-9 h-9 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-sm font-bold text-white">
               AD
             </div>
           </div>

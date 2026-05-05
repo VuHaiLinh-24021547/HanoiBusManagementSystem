@@ -45,9 +45,15 @@ const mockBuses = mockRoutes.map((r, i) => ({
 
 const initialData = {
   accounts: [
-    { id: 'A1', name: 'Demo Passenger', email: 'passenger@hanoibus.vn', password: 'demo', role: 'passenger', address: '12 Ly Thai To, Hoan Kiem, Hanoi', contact: '+84 123 456 789' },
-    { id: 'A2', name: 'Demo Admin', email: 'admin@hanoibus.vn', password: 'demo', role: 'admin', address: '', contact: '' },
-    { id: 'A3', name: 'Demo Dispatcher', email: 'dispatcher@hanoibus.vn', password: 'demo', role: 'dispatcher', address: '', contact: '' }
+    { id: 'A1', name: 'Demo Passenger', email: 'passenger@hanoibus.vn', password: 'demo', role: 'passenger', status: 'Active', balance: 500000, address: '12 Ly Thai To, Hoan Kiem, Hanoi', contact: '+84 123 456 789' },
+    { id: 'A2', name: 'Demo Admin', email: 'admin@hanoibus.vn', password: 'demo', role: 'admin', status: 'Active', balance: 0, address: '', contact: '' },
+    { id: 'A3', name: 'Demo Dispatcher', email: 'dispatcher@hanoibus.vn', password: 'demo', role: 'dispatcher', status: 'Active', balance: 0, address: '', contact: '' },
+    { id: 'A4', name: 'Passenger 1', email: 'passenger01@example.com', password: 'demo', role: 'passenger', status: 'Active', balance: 500000, address: '', contact: '' },
+    { id: 'A5', name: 'Passenger 2', email: 'passenger02@example.com', password: 'demo', role: 'passenger', status: 'Active', balance: 200000, address: '', contact: '' },
+    { id: 'A6', name: 'Dispatcher 1', email: 'dispatch1@hanoibus.com', password: 'demo', role: 'dispatcher', status: 'Active', balance: 0, address: '', contact: '' },
+    { id: 'A7', name: 'Passenger 3', email: 'passenger03@example.com', password: 'demo', role: 'passenger', status: 'Suspended', balance: 150000, address: '', contact: '' },
+    { id: 'A8', name: 'Nguyen Van A', email: 'nguyenvana@example.com', password: 'demo', role: 'passenger', status: 'Active', balance: 350000, address: '', contact: '' },
+    { id: 'A9', name: 'Broke Passenger', email: 'broke@example.com', password: 'demo', role: 'passenger', status: 'Active', balance: 0, address: '', contact: '' },
   ],
   routes: mockRoutes,
   buses: mockBuses,
@@ -78,6 +84,33 @@ const initDB = () => {
     }
     return route;
   });
+
+  // Migration: ensure all accounts have a status field
+  db.accounts = db.accounts.map(a => a.status ? a : { ...a, status: 'Active', migrated: true });
+  if (db.accounts.some(a => a.migrated)) {
+    db.accounts = db.accounts.map(({ migrated: _m, ...rest }) => rest);
+    migrated = true;
+  }
+
+  // Migration: ensure all accounts have a balance field
+  db.accounts = db.accounts.map(a => {
+    if (a.balance === undefined || a.balance === null) {
+      migrated = true;
+      // Check seed for the correct value; fall back to role-based default
+      const seed = initialData.accounts.find(s => s.id === a.id || s.email === a.email);
+      return { ...a, balance: seed?.balance ?? (a.role === 'passenger' ? 500000 : 0) };
+    }
+    return a;
+  });
+
+  // Migration: merge new seed accounts that don't exist yet
+  initialData.accounts.forEach(seed => {
+    if (!db.accounts.find(a => a.id === seed.id || a.email === seed.email)) {
+      db.accounts.push(seed);
+      migrated = true;
+    }
+  });
+
   if (migrated) {
     localStorage.setItem(DB_KEY, JSON.stringify(db));
   }
@@ -121,6 +154,11 @@ export const updateAccount = (id, updates) => {
     return db.accounts[index];
   }
   return null;
+};
+export const deleteAccount = (id) => {
+  const db = getDB();
+  db.accounts = db.accounts.filter(a => a.id !== id);
+  saveDB(db);
 };
 
 // --- Routes ---

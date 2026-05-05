@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import { MapPin, AlertTriangle, Clock, ShieldAlert, Bus, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MapPin, AlertTriangle, Clock, Bus, RefreshCw } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
-import IncidentModal from '../../components/IncidentModal';
 import { getBuses, getRoutes, getIncidents } from '../../lib/db';
 
 // Custom bus icons by status
@@ -21,37 +20,35 @@ const maintenanceIcon = makeIcon('#f97316');
 
 // Deterministic route colour from route id
 const routeColor = (id) => {
-  const colors = ['#6366f1','#0ea5e9','#f43f5e','#f59e0b','#10b981','#8b5cf6','#ec4899','#14b8a6'];
+  const colors = ['#6366f1', '#0ea5e9', '#f43f5e', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6'];
   const sum = id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   return colors[sum % colors.length];
 };
 
 // Build a fake 4-waypoint polyline between start/end of a route in Hanoi
 const terminalCoords = {
-  'Gia Lam':       [21.0325, 105.9012], 'Yen Nghia':      [20.9805, 105.7442],
-  'Bac Co':        [21.0285, 105.8450], 'Long Bien':      [21.0455, 105.8812],
-  'Dong My':       [20.9635, 105.8112], 'Giap Bat':       [20.9955, 105.8392],
-  'Nhon':          [21.0415, 105.7302], 'My Dinh':        [21.0285, 105.7742],
-  'Cau Giay':      [21.0285, 105.7942], 'Nam Thang Long': [21.0655, 105.8042],
-  'Ha Dong':       [20.9705, 105.7712], 'Noi Bai':        [21.2195, 105.8042],
-  'Dong Anh':      [21.1265, 105.8392], 'Thanh Tri':      [20.9555, 105.8552],
-  'Hoang Mai':     [20.9855, 105.8542], 'Tay Ho':         [21.0705, 105.8242],
-  'Ba Dinh':       [21.0385, 105.8292], 'Hai Ba Trung':   [21.0085, 105.8642],
-  'Tu Liem':       [21.0285, 105.7542],
+  'Gia Lam': [21.0325, 105.9012], 'Yen Nghia': [20.9805, 105.7442],
+  'Bac Co': [21.0285, 105.8450], 'Long Bien': [21.0455, 105.8812],
+  'Dong My': [20.9635, 105.8112], 'Giap Bat': [20.9955, 105.8392],
+  'Nhon': [21.0415, 105.7302], 'My Dinh': [21.0285, 105.7742],
+  'Cau Giay': [21.0285, 105.7942], 'Nam Thang Long': [21.0655, 105.8042],
+  'Ha Dong': [20.9705, 105.7712], 'Noi Bai': [21.2195, 105.8042],
+  'Dong Anh': [21.1265, 105.8392], 'Thanh Tri': [20.9555, 105.8552],
+  'Hoang Mai': [20.9855, 105.8542], 'Tay Ho': [21.0705, 105.8242],
+  'Ba Dinh': [21.0385, 105.8292], 'Hai Ba Trung': [21.0085, 105.8642],
+  'Tu Liem': [21.0285, 105.7542],
 };
 
 function buildRouteLine(route) {
   const s = terminalCoords[route.start];
   const e = terminalCoords[route.end];
   if (!s || !e) return null;
-  // Add two midpoints to simulate a road curve
   const mid1 = [(s[0] + e[0]) / 2 + 0.005, (s[1] + e[1]) / 2 - 0.005];
   const mid2 = [(s[0] + e[0]) / 2 - 0.003, (s[1] + e[1]) / 2 + 0.007];
   return [s, mid1, mid2, e];
 }
 
 export default function DispatcherDashboard() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [incidents, setIncidents] = useState([]);
@@ -67,7 +64,7 @@ export default function DispatcherDashboard() {
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 15000); // poll every 15s
+    const timer = setInterval(load, 15000);
     return () => clearInterval(timer);
   }, []);
 
@@ -113,7 +110,7 @@ export default function DispatcherDashboard() {
               <button
                 key={r.id}
                 onClick={() => setSelectedRouteId(selectedRouteId === r.id ? null : r.id)}
-                className={`px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap transition-colors`}
+                className="px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap transition-colors"
                 style={selectedRouteId === r.id
                   ? { backgroundColor: routeColor(r.id), color: 'white', borderColor: routeColor(r.id) }
                   : { color: routeColor(r.id), borderColor: routeColor(r.id), background: 'white' }
@@ -212,17 +209,8 @@ export default function DispatcherDashboard() {
         </div>
       </div>
 
-      {/* Side Panel */}
+      {/* Side Panel: Active Alerts only */}
       <div className="w-80 flex flex-col gap-4">
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="w-full py-4 px-6 bg-red-600 hover:bg-red-700 text-white rounded-2xl shadow-lg shadow-red-600/20 font-bold transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
-        >
-          <ShieldAlert className="w-5 h-5" />
-          Log Incident
-        </button>
-
-        {/* Active Incidents */}
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -243,7 +231,7 @@ export default function DispatcherDashboard() {
                 const severity = getSeverity(inc.type);
                 const route = routeMap[inc.routeId];
                 return (
-                  <div key={inc.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100/50 transition-colors cursor-pointer group">
+                  <div key={inc.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100/50 transition-colors">
                     <div className="flex items-start justify-between mb-1.5">
                       <span className="font-bold text-slate-800 text-sm">
                         {route ? route.name : inc.routeId || 'Unknown Route'}
@@ -274,8 +262,6 @@ export default function DispatcherDashboard() {
           </div>
         </div>
       </div>
-
-      <IncidentModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); load(); }} />
     </div>
   );
 }

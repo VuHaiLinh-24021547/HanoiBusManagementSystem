@@ -14,6 +14,7 @@ import AdminLayout from './components/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import FleetOperations from './pages/admin/FleetOperations';
 import RouteManagement from './pages/admin/RouteManagement';
+import UserManagement from './pages/admin/UserManagement';
 
 // Dispatcher Pages
 import DispatcherLayout from './components/DispatcherLayout';
@@ -44,6 +45,7 @@ function AnimatedRoutes() {
           <Route index element={<Dashboard />} />
           <Route path="fleet" element={<FleetOperations />} />
           <Route path="routes" element={<RouteManagement />} />
+          <Route path="users" element={<UserManagement />} />
         </Route>
 
         {/* Dispatcher Routes */}
