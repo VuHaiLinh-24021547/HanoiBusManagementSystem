@@ -1,20 +1,73 @@
-<<<<<<< HEAD
-# HanoiBusManagementSystem
-=======
-# React + Vite
+# Hanoi Bus Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, responsive web application for managing urban bus transit in Hanoi. Built with React and Vite.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+This system provides a comprehensive suite of tools for three main user roles:
 
-## React Compiler
+1. **Passengers**
+   - View bus routes, schedules, and real-time locations
+   - Purchase and manage digital tickets (with QR code generation)
+   - Receive notifications about route changes or delays
+   - Manage account settings and balance
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. **Dispatchers**
+   - Real-time fleet tracking via interactive map
+   - Monitor bus statuses (On Route, Maintenance, etc.)
+   - Incident management and reporting (Breakdowns, Traffic, etc.)
+   - Dynamic route assignment
 
-## Expanding the ESLint configuration
+3. **Administrators**
+   - Complete oversight of the system
+   - Manage fleet operations and vehicle records
+   - Route planning, scheduling, and frequency management
+   - User account administration
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
->>>>>>> 11a7511 (Initial commit: Hanoi Bus Management UI)
+## Technology Stack
+
+- **Frontend Framework**: React 18
+- **Build Tool**: Vite
+- **Routing**: React Router DOM
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Animations**: Framer Motion
+- **Maps**: Leaflet & React-Leaflet
+- **Data Storage**: LocalStorage (Prototype DB)
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v18 or higher recommended)
+- npm or yarn
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd HanoiBusManagementSystem
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## Default Accounts
+
+The system includes pre-configured demo accounts for testing different roles:
+
+- **Passenger**: `passenger@hanoibus.vn` (Pass: `demo`)
+- **Admin**: `admin@hanoibus.vn` (Pass: `demo`)
+- **Dispatcher**: `dispatcher@hanoibus.vn` (Pass: `demo`)
+
+## Development
+
+This application currently uses a mocked database (`src/lib/db.js`) that persists data to the browser's LocalStorage for demonstration purposes.
