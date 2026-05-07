@@ -37,6 +37,7 @@ export default function Tickets() {
   const [purchases, setPurchases] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null); // For QR modal
   const [showConfirm, setShowConfirm] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('vnpay');
 
   // Promo code state
   const [promoInput, setPromoInput] = useState('');
@@ -87,8 +88,8 @@ export default function Tickets() {
   };
   const removePromo = () => { setAppliedPromo(null); setPromoInput(''); setPromoError(''); };
 
-  // True when the wallet cannot cover the ticket price
-  const hasInsufficientBalance = walletBalance < finalAmount;
+  // True when the wallet cannot cover the ticket price (only applies to VNPay)
+  const hasInsufficientBalance = paymentMethod === 'vnpay' && walletBalance < finalAmount;
 
   const handlePhotoFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return;
@@ -101,8 +102,8 @@ export default function Tickets() {
     setIsProcessing(true);
     setIsPaymentError(false);
     setTimeout(() => {
-      // Hard-fail immediately if wallet balance is insufficient
-      if (walletBalance < finalAmount) {
+      // Hard-fail immediately if wallet balance is insufficient for VNPay
+      if (paymentMethod === 'vnpay' && walletBalance < finalAmount) {
         setIsProcessing(false);
         setIsPaymentError(true);
         setPaymentErrorMsg(`Insufficient balance in your VNPay e-Wallet. Your balance is ${formatVND(walletBalance)}, but the ticket costs ${price}. Please top up and try again.`);
@@ -207,44 +208,100 @@ export default function Tickets() {
               {/* Payment Method */}
               <div className="space-y-3">
                 <h2 className="font-bold text-gray-800 text-lg">Select Payment Method</h2>
-                <div className={`bg-white border-2 rounded-2xl p-5 flex items-center justify-between shadow-sm cursor-pointer relative overflow-hidden ${
-                    hasInsufficientBalance ? 'border-red-300' : 'border-green-500'
+                
+                {/* VNPay */}
+                <div onClick={() => setPaymentMethod('vnpay')} className={`bg-white border-2 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer relative overflow-hidden transition-all ${
+                    paymentMethod === 'vnpay' ? (hasInsufficientBalance ? 'border-red-400' : 'border-green-500') : 'border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300'
                   }`}>
-                  <div className={`absolute top-0 right-0 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg ${
-                    hasInsufficientBalance ? 'bg-red-400' : 'bg-green-500'
-                  }`}>DEFAULT</div>
+                  {paymentMethod === 'vnpay' && (
+                    <div className={`absolute top-0 right-0 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg ${
+                      hasInsufficientBalance ? 'bg-red-400' : 'bg-green-500'
+                    }`}>SELECTED</div>
+                  )}
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      hasInsufficientBalance ? 'bg-red-50' : 'bg-green-50'
+                      paymentMethod === 'vnpay' && hasInsufficientBalance ? 'bg-red-50' : 'bg-green-50'
                     }`}>
-                      <CreditCard className={`w-6 h-6 ${hasInsufficientBalance ? 'text-red-500' : 'text-green-600'}`} />
+                      <CreditCard className={`w-6 h-6 ${paymentMethod === 'vnpay' && hasInsufficientBalance ? 'text-red-500' : 'text-green-600'}`} />
                     </div>
                     <div>
                       <div className="font-bold text-gray-800 text-base">VNPay e-Wallet</div>
                       <div className={`text-sm font-semibold ${
-                        hasInsufficientBalance ? 'text-red-500' : 'text-gray-500'
+                        paymentMethod === 'vnpay' && hasInsufficientBalance ? 'text-red-500' : 'text-gray-500'
                       }`}>
                         Balance: {formatVND(walletBalance)}
-                        {hasInsufficientBalance && ' — Insufficient'}
+                        {paymentMethod === 'vnpay' && hasInsufficientBalance && ' — Insufficient'}
                       </div>
                     </div>
                   </div>
-                  {hasInsufficientBalance
+                  {paymentMethod === 'vnpay' && (hasInsufficientBalance
                     ? <AlertCircle className="w-6 h-6 text-red-400" />
                     : <CheckCircle2 className="w-6 h-6 text-green-500" />
-                  }
+                  )}
                 </div>
-                <div className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center justify-between shadow-sm cursor-pointer hover:border-gray-300 transition-colors opacity-70 hover:opacity-100">
+
+                {/* MoMo */}
+                <div onClick={() => setPaymentMethod('momo')} className={`bg-white border-2 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer transition-all ${
+                    paymentMethod === 'momo' ? 'border-pink-500' : 'border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300'
+                  }`}>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-pink-50 rounded-xl flex items-center justify-center">
+                      <CreditCard className="w-6 h-6 text-pink-600" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-800 text-base">MoMo Digital Wallet</div>
+                      <div className="text-sm text-gray-500">Pay securely via MoMo App</div>
+                    </div>
+                  </div>
+                  {paymentMethod === 'momo' ? <CheckCircle2 className="w-6 h-6 text-pink-500" /> : <ChevronRight className="w-6 h-6 text-gray-400" />}
+                </div>
+
+                {/* ZaloPay */}
+                <div onClick={() => setPaymentMethod('zalo')} className={`bg-white border-2 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer transition-all ${
+                    paymentMethod === 'zalo' ? 'border-blue-500' : 'border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300'
+                  }`}>
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
                       <CreditCard className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-800 text-base">ZaloPay</div>
+                      <div className="text-sm text-gray-500">Fast payment via Zalo</div>
+                    </div>
+                  </div>
+                  {paymentMethod === 'zalo' ? <CheckCircle2 className="w-6 h-6 text-blue-500" /> : <ChevronRight className="w-6 h-6 text-gray-400" />}
+                </div>
+
+                {/* QR Code */}
+                <div onClick={() => setPaymentMethod('qr')} className={`bg-white border-2 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer transition-all ${
+                    paymentMethod === 'qr' ? 'border-indigo-500' : 'border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300'
+                  }`}>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
+                      <QrCode className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-800 text-base">Bank QR Code</div>
+                      <div className="text-sm text-gray-500">Scan with any banking app</div>
+                    </div>
+                  </div>
+                  {paymentMethod === 'qr' ? <CheckCircle2 className="w-6 h-6 text-indigo-500" /> : <ChevronRight className="w-6 h-6 text-gray-400" />}
+                </div>
+
+                {/* Visa */}
+                <div onClick={() => setPaymentMethod('visa')} className={`bg-white border-2 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer transition-all ${
+                    paymentMethod === 'visa' ? 'border-blue-800' : 'border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300'
+                  }`}>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center">
+                      <CreditCard className="w-6 h-6 text-blue-800" />
                     </div>
                     <div>
                       <div className="font-bold text-gray-800 text-base">Visa ending in 4242</div>
                       <div className="text-sm text-gray-500">Expires 12/28</div>
                     </div>
                   </div>
-                  <ChevronRight className="w-6 h-6 text-gray-400" />
+                  {paymentMethod === 'visa' ? <CheckCircle2 className="w-6 h-6 text-blue-800" /> : <ChevronRight className="w-6 h-6 text-gray-400" />}
                 </div>
               </div>
 
@@ -738,8 +795,12 @@ export default function Tickets() {
                 <div className="flex justify-between items-center py-2.5 border-b border-gray-100">
                   <span className="text-sm text-gray-500">Payment method</span>
                   <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-                    <CreditCard className="w-4 h-4 text-green-500" />
-                    VNPay e-Wallet
+                    {paymentMethod === 'qr' ? <QrCode className="w-4 h-4 text-gray-600" /> : <CreditCard className="w-4 h-4 text-gray-600" />}
+                    {paymentMethod === 'vnpay' && 'VNPay e-Wallet'}
+                    {paymentMethod === 'momo' && 'MoMo Wallet'}
+                    {paymentMethod === 'zalo' && 'ZaloPay'}
+                    {paymentMethod === 'qr' && 'Bank QR Code'}
+                    {paymentMethod === 'visa' && 'Visa (4242)'}
                   </div>
                 </div>
 

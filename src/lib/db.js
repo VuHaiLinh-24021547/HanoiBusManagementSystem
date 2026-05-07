@@ -45,7 +45,7 @@ const mockBuses = mockRoutes.map((r, i) => ({
 
 const initialData = {
   accounts: [
-    { id: 'A1', name: 'Demo Passenger', email: 'passenger@hanoibus.vn', password: 'demo', role: 'passenger', status: 'Active', balance: 500000, address: '12 Ly Thai To, Hoan Kiem, Hanoi', contact: '+84 123 456 789' },
+    { id: 'A1', name: 'Demo Passenger', email: 'passenger@hanoibus.vn', password: 'test', role: 'passenger', status: 'Active', balance: 500000, address: '12 Ly Thai To, Hoan Kiem, Hanoi', contact: '+84 123 456 789' },
     { id: 'A2', name: 'Demo Admin', email: 'admin@hanoibus.vn', password: 'demo', role: 'admin', status: 'Active', balance: 0, address: '', contact: '' },
     { id: 'A3', name: 'Demo Dispatcher', email: 'dispatcher@hanoibus.vn', password: 'demo', role: 'dispatcher', status: 'Active', balance: 0, address: '', contact: '' },
     { id: 'A4', name: 'Passenger 1', email: 'passenger01@example.com', password: 'demo', role: 'passenger', status: 'Active', balance: 500000, address: '', contact: '' },
