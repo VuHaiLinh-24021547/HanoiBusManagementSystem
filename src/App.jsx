@@ -1,8 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 
 // Passenger Pages
 import Login from './pages/Login';
+import AdminLogin from './pages/AdminLogin';
 import Home from './pages/passenger/Home';
 import Tickets from './pages/passenger/Tickets';
 import Notifications from './pages/passenger/Notifications';
@@ -31,10 +32,12 @@ function AnimatedRoutes() {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={<Login />} />
+        <Route path="/login/admin" element={<AdminLogin />} />
         
         {/* Passenger Routes */}
         <Route element={<PassengerLayout />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/home" element={<Home />} />
           <Route path="/tickets" element={<Tickets />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings />} />
